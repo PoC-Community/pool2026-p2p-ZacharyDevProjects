@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./interfaces/ISmartContract.sol";
+
 contract SmartContract {
     //Step 0.02 & 0.03 - Variables and Visibility
 
@@ -111,19 +113,34 @@ contract SmartContract {
 
     mapping(address => uint256) public balances;
 
+    //Step 0.11 - Events
+
+    //Step 0.12 - Custom Errors
+
+    event BalanceUpdated(address indexed user, uint256 newBalance);
+
+    error InsufficientBalance(uint256 available, uint256 requested);
+
     function getMyBalance() public view returns (uint256) {
         return balances[msg.sender];
     }
 
     function addToBalance() public payable {
-        // TODO: Add msg.value to balances[msg.sender]
+        balances[msg.sender] += msg.value;
+
+        emit BalanceUpdated(msg.sender, balances[msg.sender]);
     }
 
     function withdrawFromBalance(uint256 _amount) public {
-        // TODO:
-        // 1. Check balance >= amount
-        // 2. Subtract from balance FIRST (before transfer!)
-        // 3. Transfer using call{value}
-        // 4. Check success
+        if (balances[msg.sender] < _amount) {
+            revert InsufficientBalance(balances[msg.sender], _amount);
+        }
+
+        balances[msg.sender] -= _amount;
+
+        (bool success, ) = msg.sender.call{value: _amount}("");
+        require(success, "Transfer failed");
+
+        emit BalanceUpdated(msg.sender, balances[msg.sender]);
     }
 }
