@@ -7,6 +7,7 @@ import "../src/ProfileSystem.sol";
 //Step 0.06 - Foundry Tests
 
 contract HelperProfileSystem is ProfileSystem {
+
 }
 
 contract ProfileSystemTester is Test {
@@ -19,8 +20,8 @@ contract ProfileSystemTester is Test {
     function testCreateProfile() public {
         got.createProfile("test");
 
-        (string memory username, uint256 level, ProfileSystem.Role role, ) =
-            got.profiles(address(this));
+        (string memory username, uint256 level, ProfileSystem.Role role, ) = got
+            .profiles(address(this));
 
         assertEq(username, "test");
         assertEq(level, 1);
@@ -31,8 +32,13 @@ contract ProfileSystemTester is Test {
         got.createProfile("test");
         got.levelUp();
 
-        (, uint256 level,,) = got.profiles(address(this));
+        (, uint256 level, , ) = got.profiles(address(this));
         assertEq(level, 2);
     }
 
+    function testCannotCreateProfileTwice() public {
+        got.createProfile("PremierNom");
+        vm.expectRevert(ProfileSystem.UserAlreadyExists.selector);
+        got.createProfile("DeuxiemeNom");
+    }
 }
