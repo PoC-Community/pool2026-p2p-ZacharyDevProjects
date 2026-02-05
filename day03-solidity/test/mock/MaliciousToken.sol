@@ -12,9 +12,7 @@ contract MaliciousToken is ERC20 {
     bool public attacking;
     uint256 public attackCount;
 
-    uint256 public constant MAX_ATTACKS = 3;
-
-    constructor() ERC20("MaliciousToken", "EVIL") {
+    constructor() ERC20("MFDOOM", "ALLCAPS") {
         _mint(msg.sender, 1_000_000 ether);
     }
 
@@ -26,16 +24,16 @@ contract MaliciousToken is ERC20 {
         attacking = _attacking;
     }
 
-    function transfer(address to, uint256 amount) public override returns (bool) {
-        if (
-            attacking &&
-            msg.sender == vault &&
-            attackCount < MAX_ATTACKS
-        ) {
-            attackCount++;
-            IVault(vault).withdraw(1); // tentative de reentrancy
-        }
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        super._transfer(from, to, amount);
 
-        return super.transfer(to, amount);
+        if (from == vault && attacking && attackCount < 3) {
+            attackCount++;
+            IVault(vault).withdraw(1);
+        }
     }
 }

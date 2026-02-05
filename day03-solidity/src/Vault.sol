@@ -68,7 +68,7 @@ contract Vault is Ownable, ReentrancyGuard {
         sharesOf[msg.sender] -= shares;
         totalShares -= shares;
         ASSET.safeTransfer(msg.sender, assetAmount);
-        emit Deposit(msg.sender, assetAmount, shares);
+        emit Withdraw(msg.sender, assetAmount, shares);
 
         return assetAmount;
 
