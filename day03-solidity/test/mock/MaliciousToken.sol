@@ -35,5 +35,6 @@ contract MaliciousToken is ERC20 {
             attackCount++;
             IVault(vault).withdraw(1);
         }
+        
     }
 }
