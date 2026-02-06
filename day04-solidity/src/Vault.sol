@@ -9,21 +9,41 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract Vault is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     IERC20 public immutable ASSET;
-
+    uint256 public withdrawalFeeBps;
     uint256 public totalShares;
+    address public governor;
+    uint256 public constant MAX_FEE = 1000;
 
     mapping(address => uint256) public sharesOf;
 
-    event Deposit (address indexed user, uint256 assets, uint256 shares);
-    event Withdraw (address indexed user, uint256 assets, uint256 shares);
+    event Deposit(address indexed user, uint256 assets, uint256 shares);
+    event Withdraw(address indexed user, uint256 assets, uint256 shares);
     event RewardAdded(uint256 amount);
+    event WithdrawalFeeUpdated(uint256 oldFee, uint256 newFee);
+    event GovernorUpdated(
+        address indexed oldGovernor,
+        address indexed newGovernor
+    );
 
     error ZeroAmount();
     error InsufficientShares();
     error ZeroShares();
+    error OnlyGovernor();
+    error FeeTooHigh();
 
     constructor(IERC20 _asset) Ownable(msg.sender) {
         ASSET = _asset;
+    }
+
+    modifier onlyGovernor() {
+        _onlyGovernor();
+        _;
+    }
+
+    function _onlyGovernor() internal view {
+        if (msg.sender != governor) {
+            revert OnlyGovernor();
+        }
     }
 
     function _convertToShares(uint256 assets) internal view returns (uint256) {
@@ -38,10 +58,11 @@ contract Vault is Ownable, ReentrancyGuard {
             return 0;
         }
         return (shares * ASSET.balanceOf(address(this))) / totalShares;
-        
     }
 
-    function deposit(uint256 assets) external nonReentrant returns (uint256 shares) {
+    function deposit(
+        uint256 assets
+    ) external nonReentrant returns (uint256 shares) {
         if (assets <= 0) {
             revert ZeroAmount();
         }
@@ -57,7 +78,9 @@ contract Vault is Ownable, ReentrancyGuard {
         return mintedShares;
     }
 
-    function withdraw (uint256 shares) public nonReentrant returns (uint256 assets) {
+    function withdraw(
+        uint256 shares
+    ) public nonReentrant returns (uint256 assets) {
         if (shares <= 0) {
             revert ZeroShares();
         }
@@ -67,22 +90,27 @@ contract Vault is Ownable, ReentrancyGuard {
         uint256 assetAmount = _convertToAssets(shares);
         sharesOf[msg.sender] -= shares;
         totalShares -= shares;
-        ASSET.safeTransfer(msg.sender, assetAmount);
-        emit Withdraw(msg.sender, assetAmount, shares);
+        uint256 fee = (assetAmount * withdrawalFeeBps) / 10000;
+        uint256 assetsAfterFee = assetAmount - fee;
+        ASSET.safeTransfer(msg.sender, assetsAfterFee);
+        emit Withdraw(msg.sender, assetsAfterFee, shares);
 
-        return assetAmount;
-
+        return assetsAfterFee;
     }
 
     function withdrawAll() public returns (uint256 assets) {
         return withdraw(sharesOf[msg.sender]);
     }
 
-    function previewDeposit(uint256 assets) external view returns (uint256 shares) {
+    function previewDeposit(
+        uint256 assets
+    ) external view returns (uint256 shares) {
         return _convertToShares(assets);
     }
 
-    function previewWithdraw(uint256 shares) external view returns (uint256 assets) {
+    function previewWithdraw(
+        uint256 shares
+    ) external view returns (uint256 assets) {
         return _convertToAssets(shares);
     }
 
@@ -111,5 +139,20 @@ contract Vault is Ownable, ReentrancyGuard {
         ASSET.safeTransferFrom(msg.sender, address(this), amount);
 
         emit RewardAdded(amount);
+    }
+
+    function setGovernor(address newGovernor) external onlyOwner {
+        address oldGovernor = governor;
+        governor = newGovernor;
+        emit GovernorUpdated(oldGovernor, newGovernor);
+    }
+
+    function setWithdrawalFee(uint256 newFeeBps)  external onlyGovernor{
+        if (newFeeBps > MAX_FEE) {
+            revert FeeTooHigh();
+        }
+        uint256 oldFee = withdrawalFeeBps;
+        withdrawalFeeBps = newFeeBps;
+        emit WithdrawalFeeUpdated(oldFee, newFeeBps);
     }
 }

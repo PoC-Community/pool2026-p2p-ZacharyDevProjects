@@ -6,6 +6,8 @@ import {VaultGovernor} from "../src/VaultGovernor.sol";
 import {PoolToken} from "../src/PoolToken.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
+
+
 contract VaultGovernorTester is Test {
     PoolToken token;
     VaultGovernor governor;
@@ -32,8 +34,10 @@ contract VaultGovernorTester is Test {
     }
 
     function testQuorumCalculation() public {
+        token.delegate(address(this));
+        vm.roll(block.number + 1);
         uint256 blockNumber = block.number;
-        uint256 quorum = governor.quorum(blockNumber);
+        uint256 quorum = governor.quorum(blockNumber-1);
         assertEq(quorum, 40_000 ether);
     }
 
@@ -41,10 +45,12 @@ contract VaultGovernorTester is Test {
         token.delegate(address(this));
         vm.roll(block.number + 1);
 
-        //faire les arrays demain
-
-
-        
+        address[] memory targets = new address[](1);
+        uint256[] memory values= new uint256[](1);
+        bytes[] memory calldatas = new bytes[](1);
+        targets[0] = address(this);
+        values[0] = 0;
+        calldatas[0] = bytes("");
 
         uint256 proposalId = governor.propose(
             targets,
